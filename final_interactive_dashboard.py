@@ -13,13 +13,12 @@ import pandas as pd
 import os
 import dash
 import dash_bootstrap_components as dbc
-from dash import dcc, html
+from dash import dcc, html, clientside_callback, ClientsideFunction
 from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # Load Data:
-
 file_path = 'Cleaned_data_sheet.xlsx'
 try:
     data = pd.read_excel(file_path)
@@ -32,13 +31,10 @@ practices = ['Corporate Venture Capital', 'Accelerators & Incubators', 'Venture 
              'Mentorship', 'Business services', 'Workspace', 'Events']
 
 # Define Wharton color palette:
-
 WHARTON_BLUE = '#011F5B'
-
 WHARTON_RED = '#990000'
 
 # Extended palette based on Wharton/Penn colors with complementary colors:
-
 WHARTON_PALETTE = [
     WHARTON_BLUE,
     WHARTON_RED,
@@ -50,88 +46,158 @@ WHARTON_PALETTE = [
     '#BF616A'
 ]
 
-# Wharton colors:
-
 COLOR_PALETTE = WHARTON_PALETTE
 
 # Create a mapping of continents to their countries:
-
 continent_to_countries = {}
 for continent in data['Continent'].unique():
     countries_in_continent = data[data['Continent'] == continent]['COUNTRY HEADQUARTERS'].unique()
     continent_to_countries[continent] = sorted(countries_in_continent)
 
 # Filter regions with at least 4 companies:
-
 country_counts = data['COUNTRY HEADQUARTERS'].value_counts()
 valid_countries = country_counts[country_counts >= 4].index.tolist()
 
 continent_counts = data['Continent'].value_counts()
 valid_continents = continent_counts[continent_counts >= 4].index.tolist()
 
-# App Setup:
-
+# App Setup with responsive theme:
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# Updated Layout:
+# Add responsive meta tag
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            /* Mobile-first responsive styles */
+            @media (max-width: 768px) {
+                .container-fluid {
+                    padding-left: 5px !important;
+                    padding-right: 5px !important;
+                }
 
-app.layout = dbc.Container(fluid=True, children=[
+                .card-body {
+                    padding: 0.5rem !important;
+                }
+
+                h1 {
+                    font-size: 1.2rem !important;
+                    margin-bottom: 1rem !important;
+                }
+
+                h4 {
+                    font-size: 1rem !important;
+                }
+
+                .dropdown {
+                    margin-bottom: 0.5rem !important;
+                }
+
+                .small {
+                    font-size: 0.7rem !important;
+                }
+
+                .text-danger {
+                    font-size: 0.6rem !important;
+                }
+            }
+
+            @media (max-width: 480px) {
+                h1 {
+                    font-size: 1rem !important;
+                }
+
+                .card-header h4 {
+                    font-size: 0.9rem !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
+
+# Updated Layout with responsive classes:
+app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
     dbc.Row([
-        dbc.Col(html.H1("How are Corporate Venturing Practices Adopted Across Regions and Industries?", className="text-center mb-4"), width=12)
+        dbc.Col(html.H1("How are Corporate Venturing Practices Adopted Across Regions and Industries?",
+                       className="text-center mb-2 mb-md-4"), width=12)
     ]),
 
     dbc.Row([
         dbc.Col([
             dbc.Card([
-                dbc.CardHeader(html.H4("Filters", className="text-primary")),
+                dbc.CardHeader(html.H4("Filters", className="text-primary mb-0")),
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Select Continent(s):", className="fw-bold"),
+                            html.Label("Select Continent(s):", className="fw-bold small"),
                             dcc.Dropdown(
                                 id='continent-dropdown',
                                 options=[{'label': cont, 'value': cont} for cont in sorted(valid_continents)],
                                 multi=True,
-                                placeholder="Select up to 3 continents"
+                                placeholder="Select up to 3 continents",
+                                className="mb-2"
                             ),
-                            html.Div(id='continent-warning', style={'color': 'red', 'fontSize': '0.8rem'})
-                        ], md=4),
+                            html.Div(id='continent-warning', style={'color': 'red', 'fontSize': '0.7rem'})
+                        ], xs=12, md=4),
                         dbc.Col([
-                            html.Label("Select Country(s):", className="fw-bold"),
+                            html.Label("Select Country(s):", className="fw-bold small"),
                             dcc.Dropdown(
                                 id='country-dropdown',
                                 options=[],
                                 multi=True,
-                                placeholder="Select up to 3 countries"
+                                placeholder="Select up to 3 countries",
+                                className="mb-2"
                             ),
-                            html.Div(id='country-warning', style={'color': 'red', 'fontSize': '0.8rem'})
-                        ], md=4),
+                            html.Div(id='country-warning', style={'color': 'red', 'fontSize': '0.7rem'})
+                        ], xs=12, md=4),
                         dbc.Col([
-                            html.Label("Select Industry(s):", className="fw-bold"),
+                            html.Label("Select Industry(s):", className="fw-bold small"),
                             dcc.Dropdown(
                                 id='industry-dropdown',
                                 options=[{'label': ind, 'value': ind} for ind in sorted(data['industry_new'].dropna().unique())],
                                 multi=True,
-                                placeholder="Select up to 4 industries"
+                                placeholder="Select up to 4 industries",
+                                className="mb-2"
                             ),
-                            html.Div(id='industry-warning', style={'color': 'red', 'fontSize': '0.8rem'})
-                        ], md=4)
+                            html.Div(id='industry-warning', style={'color': 'red', 'fontSize': '0.7rem'})
+                        ], xs=12, md=4)
                     ]),
 
                     html.Div([
                         html.Hr(),
                         dbc.Row([
                             dbc.Col([
-                                html.Div("NOTE: Numbers on the right hand side of the bars indicate the count of companies engaged in each practice", className="text-dark small"),
-                                html.Div("Continents and countries with fewer than 4 companies according to the chosen filters are excluded from the chart", className="text-danger small"),
-                                html.Div("When you select countries after selecting continents, the visualization will show data for countries only. Similarly, when you select industries along with continents and countries, you will see industry-specific visualizations for the countries you've chosen", className="text-dark small mt-2")
+                                html.Div("NOTE: Numbers on the right hand side of the bars indicate the count of companies engaged in each practice",
+                                        className="text-dark small"),
+                                html.Div("Continents and countries with fewer than 4 companies according to the chosen filters are excluded from the chart",
+                                        className="text-danger small"),
+                                html.Div("When you select countries after selecting continents, the visualization will show data for countries only. Similarly, when you select industries along with continents and countries, you will see industry-specific visualizations for the countries you've chosen",
+                                        className="text-dark small mt-2")
                             ])
                         ])
                     ], className="mt-3")
                 ])
             ])
         ], width=12)
-    ], className="mb-4"),
+    ], className="mb-2 mb-md-4"),
+
+    # Hidden div to store screen width
+    html.Div(id='screen-width', style={'display': 'none'}),
 
     dbc.Row([
         dbc.Col([
@@ -148,35 +214,87 @@ app.layout = dbc.Container(fluid=True, children=[
     ])
 ])
 
-# New callback:
+# Clientside callback to get screen width
+clientside_callback(
+    """
+    function() {
+        return window.innerWidth;
+    }
+    """,
+    Output('screen-width', 'children'),
+    Input('screen-width', 'id')
+)
 
+# Helper function to get responsive layout parameters
+def get_responsive_params(screen_width=None):
+    # Default to mobile if screen_width is not available
+    if screen_width is None or screen_width < 768:
+        return {
+            'margin_left': 120,
+            'margin_right': 10,
+            'margin_top': 80,
+            'margin_bottom': 60,
+            'font_size': 10,
+            'title_font_size': 12,
+            'text_font_size': 10,
+            'legend_font_size': 9,
+            'height_single': 600,
+            'height_subplots': 1200,
+            'legend_x': 1.01,
+            'legend_y': 0.99,
+            'show_legend_text': False
+        }
+    elif screen_width < 992:  # Tablet
+        return {
+            'margin_left': 200,
+            'margin_right': 30,
+            'margin_top': 100,
+            'margin_bottom': 80,
+            'font_size': 11,
+            'title_font_size': 13,
+            'text_font_size': 12,
+            'legend_font_size': 11,
+            'height_single': 700,
+            'height_subplots': 1400,
+            'legend_x': 1.02,
+            'legend_y': 0.99,
+            'show_legend_text': True
+        }
+    else:  # Desktop
+        return {
+            'margin_left': 300,
+            'margin_right': 50,
+            'margin_top': 150,
+            'margin_bottom': 120,
+            'font_size': 13,
+            'title_font_size': 16,
+            'text_font_size': 14,
+            'legend_font_size': 13,
+            'height_single': 800,
+            'height_subplots': 1600,
+            'legend_x': 1.02,
+            'legend_y': 0.99,
+            'show_legend_text': True
+        }
+
+# Modified callbacks with responsive parameters
 @app.callback(
     Output('country-dropdown', 'options'),
     [Input('continent-dropdown', 'value')]
 )
 def update_country_options(selected_continents):
     if not selected_continents:
-
         return [{'label': country, 'value': country} for country in sorted(valid_countries)]
-
-    # Get all countries from selected continents that have at least 4 companies:
 
     filtered_countries = []
     for continent in selected_continents:
         if continent in continent_to_countries:
             countries_in_continent = continent_to_countries[continent]
-            # Only include countries that meet the minimum company threshold:
-
             valid_countries_in_continent = [c for c in countries_in_continent if c in valid_countries]
             filtered_countries.extend(valid_countries_in_continent)
 
-    # Remove duplicates and sort:
-
     filtered_countries = sorted(set(filtered_countries))
-
     return [{'label': country, 'value': country} for country in filtered_countries]
-
-# Also need to reset country selection when continents change:
 
 @app.callback(
     Output('country-dropdown', 'value'),
@@ -187,14 +305,8 @@ def reset_country_value(available_options, current_value):
     if not current_value:
         return current_value
 
-    # Get list of available country values:
-
     available_values = [option['value'] for option in available_options]
-
-    # Keep only selected countries that are still available in the options:
-
     valid_selections = [val for val in current_value if val in available_values]
-
     return valid_selections if valid_selections else None
 
 @app.callback(
@@ -221,7 +333,6 @@ def enforce_limits(continents, countries, industries):
         industries = industries[:4]
     return warn['continent'], warn['country'], warn['industry'], continents, industries
 
-
 def get_filtered_data(continents, countries, industries):
     df = data.copy()
     if continents:
@@ -232,632 +343,34 @@ def get_filtered_data(continents, countries, industries):
         df = df[df['industry_new'].isin(industries)]
     return df
 
-
 @app.callback(
     Output('visualization-container', 'children'),
     [Input('continent-dropdown', 'value'),
      Input('country-dropdown', 'value'),
-     Input('industry-dropdown', 'value')]
+     Input('industry-dropdown', 'value'),
+     Input('screen-width', 'children')]
 )
-def update_visualization(continents, countries, industries):
+def update_visualization(continents, countries, industries, screen_width):
+    # Convert screen_width to int if it exists
+    try:
+        screen_width = int(screen_width) if screen_width else None
+    except (ValueError, TypeError):
+        screen_width = None
+
     df = get_filtered_data(continents, countries, industries)
     if df.empty:
         return html.Div("No data available for selected filters", className="text-center text-danger p-4")
 
+    params = get_responsive_params(screen_width)
+
     if industries and not (continents or countries):
-        return create_industry_visualization(df, industries)
+        return create_industry_visualization(df, industries, params)
     elif industries:
-        return create_industry_subplots(df, industries, countries, continents)
+        return create_industry_subplots(df, industries, countries, continents, params)
     else:
-        return create_grouped_bar_chart(df, countries, continents)
+        return create_grouped_bar_chart(df, countries, continents, params)
 
-
-def create_industry_subplots(df, industries, countries, continents):
-    rows, cols = 2, 2
-
-    # Filter out empty strings to get actual selected industries:
-
-    actual_industries = [i for i in industries if i]
-
-    # Pad with empty strings to maintain 4 subplots:
-
-    industries = actual_industries + [''] * (4 - len(actual_industries))
-
-    fig = make_subplots(
-        rows=2,
-        cols=2,
-        subplot_titles=[f"Industry: {i}" if i else "" for i in industries],
-        horizontal_spacing=0.12,
-        vertical_spacing=0.16
-    )
-
-    # Logic for region selection:
-
-    if countries:
-        group_col = 'COUNTRY HEADQUARTERS'
-        groups = [g for g in countries if g in df['COUNTRY HEADQUARTERS'].unique()]
-        label = 'Country'
-    elif continents:
-        group_col = 'Continent'
-        groups = [g for g in continents if g in df['Continent'].unique()]
-        label = 'Continent'
-    else:
-        group_col, groups, label = None, ['All'], ''
-
-
-    max_valid_groups = 0
-
-    # Track which industries have enough data:
-
-    industries_with_data = {}
-
-    if group_col:
-        for industry in actual_industries:
-            industry_data = df[df['industry_new'] == industry]
-            valid_groups_count = 0
-
-            for g in groups:
-                group_data = industry_data[industry_data[group_col] == g]
-                if len(group_data) >= 4:
-                    valid_groups_count += 1
-
-            max_valid_groups = max(max_valid_groups, valid_groups_count)
-            industries_with_data[industry] = valid_groups_count > 0
-    else:
-        max_valid_groups = 1
-        for industry in actual_industries:
-            industry_data = df[df['industry_new'] == industry]
-            industries_with_data[industry] = len(industry_data) >= 4
-
-    # Calculate a consistent bar width based on max_valid_groups:
-
-    base_width = 0.6
-    bar_width = base_width / max(1, max_valid_groups)
-    bar_width = max(bar_width, 0.15)
-
-    # Create a dictionary to track which groups have been added to the legend:
-
-    legend_groups = {}
-
-    # Check if any subplot has valid data:
-
-    any_subplot_has_data = any(industries_with_data.get(ind, False) for ind in actual_industries)
-
-    # Get subplot domain information for message positioning:
-
-    subplot_domains = {}
-    for idx, industry in enumerate(industries):
-        if not industry:
-            continue
-
-        r, c = divmod(idx, 2)
-        row, col = r + 1, c + 1
-
-        # Store domain information for each subplot to use for message positioning:
-
-        subplot_domains[idx] = {
-            'row': row,
-            'col': col
-        }
-
-    for idx, industry in enumerate(industries):
-        if not industry:
-            continue
-
-        r, c = divmod(idx, 2)
-        row, col = r + 1, c + 1
-
-        industry_data = df[df['industry_new'] == industry]
-
-        # Check if this industry has any valid data to display:
-
-        has_data_to_display = industries_with_data.get(industry, False)
-
-        # Add horizontal separators between practice rows - these are added for all subplots with actual industry:
-
-        if any_subplot_has_data:
-
-            # Add horizontal separator lines between each practice
-
-            for i in range(len(practices) - 1):
-                fig.add_shape(
-                    type="line",
-                    x0=0,
-                    y0=i + 0.5,
-                    x1=1,
-                    y1=i + 0.5,
-                    line=dict(
-                        color="rgba(150,150,150,0.3)",
-                        width=1,
-                        dash="dash"
-                    ),
-                    xref=f"x{idx+1} domain" if idx > 0 else "x domain",
-                    yref=f"y{idx+1}" if idx > 0 else "y",
-                    row=row,
-                    col=col
-                )
-
-        if not has_data_to_display:
-            # Get the subplot title's position to align the message below it
-            title_y = fig.layout.annotations[idx].y
-
-            x_center = 0.5
-
-            # For 2x2 grid, calculate the actual paper coordinates based on position
-            if row == 1 and col == 1:
-                x_center = 0.12
-            elif row == 1 and col == 2:
-                x_center = 0.90
-            elif row == 2 and col == 1:
-                x_center = 0.12
-            elif row == 2 and col == 2:
-                x_center = 0.90
-
-            # Use a consistent vertical margin to avoid overlap with axis elements:
-
-            vertical_margin = 0.05
-
-            # Add the "No data" message directly below the title, properly centered:
-
-            fig.add_annotation(
-                text="No data available to display for this selection",
-                xref="paper",
-                yref="paper",
-                x=x_center,
-                y=title_y - vertical_margin,
-                showarrow=False,
-                font=dict(size=12, color=WHARTON_RED, family="Arial, sans-serif"),
-                align="center",
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="rgba(153,0,0,0.3)",
-                borderwidth=1,
-                borderpad=4
-            )
-
-            # If any subplot has data, we show axes for ALL subplots for visual consistency:
-
-
-            if not any_subplot_has_data:
-                # If NO subplot has data, remove all axis elements:
-
-                fig.update_xaxes(
-                    showticklabels=False,
-                    showgrid=False,
-                    zeroline=False,
-                    showline=False,
-                    title_text="",
-                    row=row,
-                    col=col
-                )
-
-                fig.update_yaxes(
-                    showticklabels=False,
-                    ticksuffix='   ',
-                    showgrid=False,
-                    zeroline=False,
-                    showline=False,
-                    title_text="",
-                    row=row,
-                    col=col
-                )
-            else:
-                # If SOME subplot has data, keep axis but minimal formatting:
-
-                fig.update_xaxes(
-                    showticklabels=False,
-                    showgrid=False,
-                    zeroline=False,
-                    showline=True,
-                    linecolor='rgba(211, 211, 211, 0.5)',
-                    linewidth=1,
-                    title_text="",
-                    range=[0, 100],
-                    row=row,
-                    col=col
-                )
-
-                # Keep y-axis with practices for empty subplots too:
-
-                if col == 1:
-                    fig.update_yaxes(
-                        ticktext=practices,
-                        tickvals=list(range(len(practices))),
-                        ticksuffix='   ',
-                        tickfont=dict(size=13, family="Arial, sans-serif"),
-                        linewidth=1,
-                        linecolor='gray',
-                        showgrid=False,
-                        row=row,
-                        col=col
-                    )
-                else:
-                    # Hide labels for second column:
-
-                    fig.update_yaxes(
-                        showticklabels=False,
-                        showline=True,
-                        linecolor='gray',
-                        ticksuffix='   ',
-                        linewidth=1,
-                        showgrid=False,
-                        row=row,
-                        col=col
-                    )
-
-            continue
-
-        if group_col:
-            found_valid_group = False
-            for j, g in enumerate(groups):
-                group_data = industry_data[industry_data[group_col] == g]
-
-                # Check if we have enough data (at least 4 companies):
-
-                if len(group_data) < 4:
-                    continue
-
-                found_valid_group = True
-                y_vals = []
-                text_vals = []
-                for p in practices:
-                    count = group_data[p].sum()
-                    y_vals.append((count/len(group_data))*100 if count else 0)
-                    text_vals.append(str(int(count)) if count > 0 else "")
-
-                # Determine whether to show in legend:
-
-                show_in_legend = g not in legend_groups
-                if show_in_legend:
-                    legend_groups[g] = True
-
-                fig.add_trace(go.Bar(
-                    y=practices,
-                    x=y_vals,
-                    text=text_vals,
-                    textposition='outside',
-                    name=g,
-                    marker_color=COLOR_PALETTE[j % len(COLOR_PALETTE)],
-                    orientation='h',
-                    textfont=dict(size=14, color='black', family="Arial, sans-serif"),
-                    hovertemplate=f"{label}: {g}<br>%{{y}}: %{{x:.1f}}%<br>Count: %{{text}}<extra></extra>",
-                    showlegend=show_in_legend,
-                    width=bar_width
-                ), row=row, col=col)
-
-            # If no valid groups were found after checking all groups for this industry:
-
-            if not found_valid_group:
-                # Get the subplot title's position to align the message below it:
-
-                title_y = fig.layout.annotations[idx].y
-
-                # Calculate center of subplot in paper coordinates:
-
-                x_center = 0.5
-
-                # For 2x2 grid, calculate the actual paper coordinates based on position:
-
-                if row == 1 and col == 1:  # Top left
-                    x_center = 0.12
-                elif row == 1 and col == 2:  # Top right
-                    x_center = 0.90
-                elif row == 2 and col == 1:  # Bottom left
-                    x_center = 0.12
-                elif row == 2 and col == 2:  # Bottom right
-                    x_center = 0.90
-
-                # Use a consistent vertical margin to avoid overlap with axis elements:
-
-                vertical_margin = 0.05
-
-                # Add the "No data" message directly below the title, properly centered:
-
-                fig.add_annotation(
-                    text="No data available to display for this selection",
-                    xref="paper",
-                    yref="paper",
-                    x=x_center,
-                    y=title_y - vertical_margin,
-                    showarrow=False,
-                    font=dict(size=12, color=WHARTON_RED, family="Arial, sans-serif"),
-                    align="center",
-                    bgcolor="rgba(255,255,255,0.8)",
-                    bordercolor="rgba(153,0,0,0.3)",
-                    borderwidth=1,
-                    borderpad=4
-                )
-
-                # Keep consistent axes if any subplot has data:
-
-                if any_subplot_has_data:
-                    # Keep axes with minimal formatting:
-
-                    fig.update_xaxes(
-                        showticklabels=False,
-                        showgrid=False,
-                        zeroline=False,
-                        showline=True,
-                        linecolor='rgba(211, 211, 211, 0.5)',
-                        linewidth=1,
-                        title_text="",
-                        range=[0, 100],
-                        row=row,
-                        col=col
-                    )
-
-                    # Keep y-axis with practices:
-
-                    if col == 1:
-                        fig.update_yaxes(
-                            ticktext=practices,
-                            tickvals=list(range(len(practices))),
-                            tickfont=dict(size=13, family="Arial, sans-serif"),
-                            ticksuffix='   ',
-                            linewidth=1,
-                            linecolor='gray',
-                            showgrid=False,
-                            row=row,
-                            col=col
-                        )
-                    else:
-                        # Hide labels for second column:
-
-                        fig.update_yaxes(
-                            showticklabels=False,
-                            showline=True,
-                            linecolor='gray',
-                            linewidth=1,
-                            showgrid=False,
-                            row=row,
-                            col=col
-                        )
-                else:
-                    # If no subplot has data, remove all axis elements:
-
-                    fig.update_xaxes(
-                        showticklabels=False,
-                        showgrid=False,
-                        zeroline=False,
-                        showline=False,
-                        title_text="",
-                        row=row,
-                        col=col
-                    )
-
-                    fig.update_yaxes(
-                        showticklabels=False,
-                        ticksuffix='   ',
-                        showgrid=False,
-                        zeroline=False,
-                        showline=False,
-                        title_text="",
-                        row=row,
-                        col=col
-                    )
-        else:
-            # All companies case:
-
-            if len(industry_data) >= 4:
-                y_vals = []
-                text_vals = []
-                for p in practices:
-                    count = industry_data[p].sum()
-                    y_vals.append((count/len(industry_data))*100 if count else 0)
-                    text_vals.append(str(int(count)) if count > 0 else "")
-
-                fig.add_trace(go.Bar(
-                    y=practices,
-                    x=y_vals,
-                    text=text_vals,
-                    textposition='outside',
-                    name="All Companies",
-                    marker_color=WHARTON_BLUE,
-                    orientation='h',
-                    textfont=dict(size=14, color='black', family="Arial, sans-serif"),
-                    hovertemplate="Industry: %{fullData.name}<br>%{y}: %{x:.1f}%<br>Count: %{text}<extra></extra>",
-                    showlegend=(idx == 0),
-                    width=bar_width
-                ), row=row, col=col)
-            else:
-                # Get the subplot title's position to align the message below it:
-
-                title_y = fig.layout.annotations[idx].y
-
-                # Calculate center of subplot in paper coordinates:
-
-                x_center = 0.5
-
-                # For 2x2 grid, calculate the actual paper coordinates based on position:
-
-                if row == 1 and col == 1:  # Top left
-                    x_center = 0.12
-                elif row == 1 and col == 2:  # Top right
-                    x_center = 0.90
-                elif row == 2 and col == 1:  # Bottom left
-                    x_center = 0.12
-                elif row == 2 and col == 2:  # Bottom right
-                    x_center = 0.90
-
-                # Use a consistent vertical margin to avoid overlap with axis elements:
-
-                vertical_margin = 0.05
-
-                # Add the "No data" message directly below the title, properly centered:
-
-                fig.add_annotation(
-                    text="No data available to display for this selection",
-                    xref="paper",
-                    yref="paper",
-                    x=x_center,
-                    y=title_y - vertical_margin,
-                    showarrow=False,
-                    font=dict(size=12, color=WHARTON_RED, family="Arial, sans-serif"),
-                    align="center",
-                    bgcolor="rgba(255,255,255,0.8)",
-                    bordercolor="rgba(153,0,0,0.3)",
-                    borderwidth=1,
-                    borderpad=4
-                )
-
-                # Keep consistent axes if any subplot has data:
-
-                if any_subplot_has_data:
-                    # Keep axes with minimal formatting:
-
-                    fig.update_xaxes(
-                        showticklabels=False,
-                        showgrid=False,
-                        zeroline=False,
-                        showline=True,
-                        linecolor='rgba(211, 211, 211, 0.5)',
-                        linewidth=1,
-                        title_text="",
-                        range=[0, 100],
-                        row=row,
-                        col=col
-                    )
-
-                    # Keep y-axis with practices:
-
-                    if col == 1:
-                        fig.update_yaxes(
-                            ticktext=practices,
-                            tickvals=list(range(len(practices))),
-                            tickfont=dict(size=13, family="Arial, sans-serif"),
-                            ticksuffix='   ',
-                            linewidth=1,
-                            linecolor='gray',
-                            showgrid=False,
-                            row=row,
-                            col=col
-                        )
-                    else:
-                        # Hide labels for second column:
-
-                        fig.update_yaxes(
-                            showticklabels=False,
-                            showline=True,
-                            ticksuffix='   ',
-                            linecolor='gray',
-                            linewidth=1,
-                            showgrid=False,
-                            row=row,
-                            col=col
-                        )
-                else:
-                    # If no subplot has data, remove all axis elements:
-
-                    fig.update_xaxes(
-                        showticklabels=False,
-                        showgrid=False,
-                        zeroline=False,
-                        showline=False,
-                        title_text="",
-                        row=row,
-                        col=col
-                    )
-
-                    fig.update_yaxes(
-                        showticklabels=False,
-                        showgrid=False,
-                        ticksuffix='   ',
-                        zeroline=False,
-                        showline=False,
-                        title_text="",
-                        row=row,
-                        col=col
-                    )
-
-    fig.update_layout(
-        height=1600,
-        barmode='group',
-        margin=dict(l=250, r=200, t=150, b=120),
-        bargap=0.35,
-        bargroupgap=0.15,
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=0.99,
-            xanchor="left",
-            x=1.02,
-            bgcolor="rgba(255,255,255,0.9)",
-            bordercolor="LightGray",
-            borderwidth=1,
-            font=dict(size=13)
-        ),
-        yaxis_tickfont_size=13,
-        title_font=dict(size=16)
-    )
-
-    # Configure axes only for subplots with data:
-
-    for idx, industry in enumerate(industries):
-        if not industry:
-            continue
-
-        r, c = divmod(idx, 2)
-        row, col = r + 1, c + 1
-
-        has_data = industries_with_data.get(industry, False)
-
-        # For subplots with data, add detailed axis formatting:
-
-        if has_data:
-            # Add x-axis properties:
-
-            fig.update_xaxes(
-                title_text="Percentage of Companies",
-                title_font=dict(size=14),
-                tickfont=dict(size=12),
-                linewidth=1,
-                linecolor='gray',
-                gridcolor='lightgray',
-                gridwidth=0.5,
-                range=[0, max(100, df[practices].sum(axis=1).max() / len(df) * 100 * 1.2)],
-                showgrid=True,
-                zeroline=True,
-                zerolinecolor='rgba(0, 0, 0, 0.3)',
-                zerolinewidth=1.5,
-                row=row,
-                col=col
-            )
-
-            # Update y-axis properties for better readability:
-
-            if col == 1:  # Only for first column
-                fig.update_yaxes(
-                    tickfont=dict(size=13, family="Arial, sans-serif"),
-                    ticksuffix='   ',
-                    linewidth=1,
-                    linecolor='gray',
-                    row=row,
-                    col=col
-                )
-            else:
-                # Hide labels for second column
-                fig.update_yaxes(
-                    showticklabels=False,
-                    ticksuffix='   ',
-                    showline=True,
-                    linecolor='gray',
-                    linewidth=1,
-                    row=row,
-                    col=col
-                )
-
-    # Add a white outline around text for better visibility
-    fig.update_traces(
-        textfont=dict(size=14),
-        outsidetextfont=dict(color='black')
-    )
-
-    return dcc.Graph(figure=fig, style={"height": "1600px", "width": "100%"})
-
-
-
-def create_grouped_bar_chart(df, countries, continents):
+def create_grouped_bar_chart(df, countries, continents, params):
     fig = go.Figure()
 
     if countries:
@@ -880,7 +393,7 @@ def create_grouped_bar_chart(df, countries, continents):
     # Calculate bar width based on number of valid groups
     base_width = 0.6
     bar_width = base_width / max(1, valid_groups_count)
-    bar_width = max(bar_width, 0.15)  # Set minimum width
+    bar_width = max(bar_width, 0.15)
 
     if col:
         for i, g in enumerate(groups):
@@ -903,9 +416,9 @@ def create_grouped_bar_chart(df, countries, continents):
                 name=g,
                 marker_color=COLOR_PALETTE[i % len(COLOR_PALETTE)],
                 orientation='h',
-                textfont=dict(size=14, color='black', family="Arial, sans-serif"),
+                textfont=dict(size=params['text_font_size'], color='black', family="Arial, sans-serif"),
                 hovertemplate=f"{label}: {g}<br>%{{y}}: %{{x:.1f}}%<br>Count: %{{text}}<extra></extra>",
-                width=bar_width  # Use calculated consistent width
+                width=bar_width
             ))
     else:
         y_vals = []
@@ -921,47 +434,55 @@ def create_grouped_bar_chart(df, countries, continents):
             text=text_vals,
             textposition='outside',
             name="All Companies",
-            marker_color=WHARTON_BLUE,  # Use primary Wharton blue
+            marker_color=WHARTON_BLUE,
             orientation='h',
-            textfont=dict(size=14, color='black', family="Arial, sans-serif"),
+            textfont=dict(size=params['text_font_size'], color='black', family="Arial, sans-serif"),
             hovertemplate="All Companies<br>%{y}: %{x:.1f}%<br>Count: %{text}<extra></extra>",
-            width=bar_width  # Use calculated consistent width
+            width=bar_width
         ))
 
     fig.update_layout(
-        height=800,
+        height=params['height_single'],
         barmode='group',
-        margin=dict(l=300, r=50, t=50, b=80),
+        margin=dict(
+            l=params['margin_left'],
+            r=params['margin_right'],
+            t=50,
+            b=params['margin_bottom']
+        ),
         bargap=0.4,
         plot_bgcolor='white',
         paper_bgcolor='white',
-        yaxis_tickfont_size=13,
-        xaxis_title="Percentage of Companies ",
+        yaxis_tickfont_size=params['font_size'],
+        xaxis_title="Percentage of Companies",
         yaxis_title="Corporate Venturing Practices",
         yaxis=dict(
-            ticksuffix='   ',  # Add extra spaces after tick labels
-            tickfont=dict(size=13, family="Arial, sans-serif"),
+            ticksuffix='   ',
+            tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
             linewidth=1,
             linecolor='gray',
             showgrid=False
-            ),
+        ),
         legend=dict(
             orientation="v",
             yanchor="top",
-            y=0.99,
+            y=params['legend_y'],
             xanchor="left",
-            x=1.02,
+            x=params['legend_x'],
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="LightGray",
             borderwidth=1,
-            font=dict(size=13)
+            font=dict(size=params['legend_font_size'])
         )
     )
 
-    return dcc.Graph(figure=fig, style={"height": "800px", "width": "100%"})
+    return dcc.Graph(
+        figure=fig,
+        style={"height": f"{params['height_single']}px", "width": "100%"},
+        config={'responsive': True, 'displayModeBar': False}
+    )
 
-
-def create_industry_visualization(df, industries):
+def create_industry_visualization(df, industries, params):
     fig = go.Figure()
 
     # Calculate valid industries count for bar width consistency
@@ -996,47 +517,280 @@ def create_industry_visualization(df, industries):
             name=industry,
             marker_color=COLOR_PALETTE[i % len(COLOR_PALETTE)],
             orientation='h',
-            textfont=dict(size=14, color='black', family="Arial, sans-serif"),
+            textfont=dict(size=params['text_font_size'], color='black', family="Arial, sans-serif"),
             hovertemplate="Industry: %{fullData.name}<br>%{y}: %{x:.1f}%<br>Count: %{text}<extra></extra>",
             width=bar_width
         ))
 
     fig.update_layout(
-        height=700,
+        height=params['height_single'] - 100,
         barmode='group',
-        margin=dict(l=300, r=40, t=40, b=80),
+        margin=dict(
+            l=params['margin_left'],
+            r=params['margin_right'],
+            t=40,
+            b=params['margin_bottom']
+        ),
         bargap=0.3,
         plot_bgcolor='white',
         paper_bgcolor='white',
-        yaxis_tickfont_size=13,
+        yaxis_tickfont_size=params['font_size'],
         yaxis=dict(
-             ticksuffix='   ',
-             tickfont=dict(size=13, family="Arial, sans-serif"),
-             linewidth=1,
-             linecolor='gray',
-             showgrid=False
-             ),
+            ticksuffix='   ',
+            tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
+            linewidth=1,
+            linecolor='gray',
+            showgrid=False
+        ),
         legend=dict(
             orientation="v",
             yanchor="top",
-            y=0.99,
+            y=params['legend_y'],
             xanchor="left",
-            x=1.02,
+            x=params['legend_x'],
             bgcolor="rgba(255,255,255,0.9)",
             bordercolor="LightGray",
             borderwidth=1,
-            font=dict(size=13)
+            font=dict(size=params['legend_font_size'])
         ),
-
         xaxis_title="Percentage of Companies",
         yaxis_title="Corporate Venturing Practices"
     )
 
-    return dcc.Graph(figure=fig, style={"height": "700px", "width": "100%"})
+    return dcc.Graph(
+        figure=fig,
+        style={"height": f"{params['height_single'] - 100}px", "width": "100%"},
+        config={'responsive': True, 'displayModeBar': False}
+    )
 
+def create_industry_subplots(df, industries, countries, continents, params):
+    rows, cols = 2, 2
+    actual_industries = [i for i in industries if i]
+    industries = actual_industries + [''] * (4 - len(actual_industries))
 
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        subplot_titles=[f"Industry: {i}" if i else "" for i in industries],
+        horizontal_spacing=0.12,
+        vertical_spacing=0.16
+    )
+
+    # Logic for region selection
+    if countries:
+        group_col = 'COUNTRY HEADQUARTERS'
+        groups = [g for g in countries if g in df['COUNTRY HEADQUARTERS'].unique()]
+        label = 'Country'
+    elif continents:
+        group_col = 'Continent'
+        groups = [g for g in continents if g in df['Continent'].unique()]
+        label = 'Continent'
+    else:
+        group_col, groups, label = None, ['All'], ''
+
+    max_valid_groups = 0
+    industries_with_data = {}
+
+    if group_col:
+        for industry in actual_industries:
+            industry_data = df[df['industry_new'] == industry]
+            valid_groups_count = 0
+
+            for g in groups:
+                group_data = industry_data[industry_data[group_col] == g]
+                if len(group_data) >= 4:
+                    valid_groups_count += 1
+
+            max_valid_groups = max(max_valid_groups, valid_groups_count)
+            industries_with_data[industry] = valid_groups_count > 0
+    else:
+        max_valid_groups = 1
+        for industry in actual_industries:
+            industry_data = df[df['industry_new'] == industry]
+            industries_with_data[industry] = len(industry_data) >= 4
+
+    # Calculate bar width
+    base_width = 0.6
+    bar_width = base_width / max(1, max_valid_groups)
+    bar_width = max(bar_width, 0.15)
+
+    legend_groups = {}
+    any_subplot_has_data = any(industries_with_data.get(ind, False) for ind in actual_industries)
+
+    for idx, industry in enumerate(industries):
+        if not industry:
+            continue
+
+        r, c = divmod(idx, 2)
+        row, col = r + 1, c + 1
+
+        industry_data = df[df['industry_new'] == industry]
+        has_data_to_display = industries_with_data.get(industry, False)
+
+        if any_subplot_has_data:
+            for i in range(len(practices) - 1):
+                fig.add_shape(
+                    type="line",
+                    x0=0,
+                    y0=i + 0.5,
+                    x1=1,
+                    y1=i + 0.5,
+                    line=dict(
+                        color="rgba(150,150,150,0.3)",
+                        width=1,
+                        dash="dash"
+                    ),
+                    xref=f"x{idx+1} domain" if idx > 0 else "x domain",
+                    yref=f"y{idx+1}" if idx > 0 else "y",
+                    row=row,
+                    col=col
+                )
+
+        if not has_data_to_display:
+            title_y = fig.layout.annotations[idx].y
+            x_center = 0.5
+
+            if row == 1 and col == 1:
+                x_center = 0.12
+            elif row == 1 and col == 2:
+                x_center = 0.90
+            elif row == 2 and col == 1:
+                x_center = 0.12
+            elif row == 2 and col == 2:
+                x_center = 0.90
+
+            vertical_margin = 0.05
+
+            fig.add_annotation(
+                text="No data available",
+                xref="paper",
+                yref="paper",
+                x=x_center,
+                y=title_y - vertical_margin,
+                showarrow=False,
+                font=dict(size=params['font_size'], color=WHARTON_RED, family="Arial, sans-serif"),
+                align="center",
+                bgcolor="rgba(255,255,255,0.8)",
+                bordercolor="rgba(153,0,0,0.3)",
+                borderwidth=1,
+                borderpad=4
+            )
+            continue
+
+        if group_col:
+            for j, g in enumerate(groups):
+                group_data = industry_data[industry_data[group_col] == g]
+
+                if len(group_data) < 4:
+                    continue
+
+                y_vals = []
+                text_vals = []
+                for p in practices:
+                    count = group_data[p].sum()
+                    y_vals.append((count/len(group_data))*100 if count else 0)
+                    text_vals.append(str(int(count)) if count > 0 else "")
+
+                show_in_legend = g not in legend_groups
+                if show_in_legend:
+                    legend_groups[g] = True
+
+                fig.add_trace(go.Bar(
+                    y=practices,
+                    x=y_vals,
+                    text=text_vals,
+                    textposition='outside',
+                    name=g,
+                    marker_color=COLOR_PALETTE[j % len(COLOR_PALETTE)],
+                    orientation='h',
+                    textfont=dict(size=params['text_font_size'], color='black', family="Arial, sans-serif"),
+                    hovertemplate=f"{label}: {g}<br>%{{y}}: %{{x:.1f}}%<br>Count: %{{text}}<extra></extra>",
+                    showlegend=show_in_legend,
+                    width=bar_width
+                ), row=row, col=col)
+
+    fig.update_layout(
+        height=params['height_subplots'],
+        barmode='group',
+        margin=dict(
+            l=params['margin_left'],
+            r=params['margin_right'],
+            t=params['margin_top'],
+            b=params['margin_bottom']
+        ),
+        bargap=0.35,
+        bargroupgap=0.15,
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=params['legend_y'],
+            xanchor="left",
+            x=params['legend_x'],
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="LightGray",
+            borderwidth=1,
+            font=dict(size=params['legend_font_size'])
+        ),
+        yaxis_tickfont_size=params['font_size'],
+        title_font=dict(size=params['title_font_size'])
+    )
+
+    # Configure axes for subplots with data
+    for idx, industry in enumerate(industries):
+        if not industry:
+            continue
+
+        r, c = divmod(idx, 2)
+        row, col = r + 1, c + 1
+        has_data = industries_with_data.get(industry, False)
+
+        if has_data:
+            fig.update_xaxes(
+                title_text="Percentage of Companies" if row == 2 else "",
+                title_font=dict(size=params['font_size']),
+                tickfont=dict(size=params['font_size'] - 1),
+                linewidth=1,
+                linecolor='gray',
+                gridcolor='lightgray',
+                gridwidth=0.5,
+                range=[0, max(100, df[practices].sum(axis=1).max() / len(df) * 100 * 1.2)],
+                showgrid=True,
+                zeroline=True,
+                zerolinecolor='rgba(0, 0, 0, 0.3)',
+                zerolinewidth=1.5,
+                row=row,
+                col=col
+            )
+
+            if col == 1:
+                fig.update_yaxes(
+                    tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
+                    ticksuffix='   ',
+                    linewidth=1,
+                    linecolor='gray',
+                    row=row,
+                    col=col
+                )
+            else:
+                fig.update_yaxes(
+                    showticklabels=False,
+                    ticksuffix='   ',
+                    showline=True,
+                    linecolor='gray',
+                    linewidth=1,
+                    row=row,
+                    col=col
+                )
+
+    return dcc.Graph(
+        figure=fig,
+        style={"height": f"{params['height_subplots']}px", "width": "100%"},
+        config={'responsive': True, 'displayModeBar': False}
+    )
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
 
