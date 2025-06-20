@@ -64,6 +64,9 @@ valid_continents = continent_counts[continent_counts >= 4].index.tolist()
 # App Setup with responsive theme:
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+# Configure dev tools
+app.config.suppress_callback_exceptions = True
+
 # Add responsive meta tag
 app.index_string = '''
 <!DOCTYPE html>
@@ -78,43 +81,54 @@ app.index_string = '''
             /* Mobile-first responsive styles */
             @media (max-width: 768px) {
                 .container-fluid {
-                    padding-left: 5px !important;
-                    padding-right: 5px !important;
+                    padding-left: 2px !important;
+                    padding-right: 2px !important;
                 }
 
                 .card-body {
-                    padding: 0.5rem !important;
+                    padding: 0.25rem !important;
                 }
 
                 h1 {
-                    font-size: 1.2rem !important;
-                    margin-bottom: 1rem !important;
+                    font-size: 1.1rem !important;
+                    margin-bottom: 0.5rem !important;
+                    line-height: 1.2 !important;
                 }
 
                 h4 {
-                    font-size: 1rem !important;
+                    font-size: 0.9rem !important;
                 }
 
                 .dropdown {
-                    margin-bottom: 0.5rem !important;
+                    margin-bottom: 0.25rem !important;
                 }
 
                 .small {
-                    font-size: 0.7rem !important;
+                    font-size: 0.65rem !important;
                 }
 
                 .text-danger {
                     font-size: 0.6rem !important;
                 }
+
+                .fw-bold {
+                    font-size: 0.7rem !important;
+                }
             }
 
             @media (max-width: 480px) {
                 h1 {
-                    font-size: 1rem !important;
+                    font-size: 0.95rem !important;
+                    padding: 0 5px !important;
                 }
 
                 .card-header h4 {
-                    font-size: 0.9rem !important;
+                    font-size: 0.8rem !important;
+                }
+
+                .container-fluid {
+                    padding-left: 1px !important;
+                    padding-right: 1px !important;
                 }
             }
         </style>
@@ -131,10 +145,10 @@ app.index_string = '''
 '''
 
 # Updated Layout with responsive classes:
-app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
+app.layout = dbc.Container(fluid=True, className="px-0 px-md-3", children=[
     dbc.Row([
         dbc.Col(html.H1("How are Corporate Venturing Practices Adopted Across Regions and Industries?",
-                       className="text-center mb-2 mb-md-4"), width=12)
+                       className="text-center mb-1 mb-md-4"), width=12)
     ]),
 
     dbc.Row([
@@ -150,7 +164,7 @@ app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
                                 options=[{'label': cont, 'value': cont} for cont in sorted(valid_continents)],
                                 multi=True,
                                 placeholder="Select up to 3 continents",
-                                className="mb-2"
+                                className="mb-1"
                             ),
                             html.Div(id='continent-warning', style={'color': 'red', 'fontSize': '0.7rem'})
                         ], xs=12, md=4),
@@ -161,7 +175,7 @@ app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
                                 options=[],
                                 multi=True,
                                 placeholder="Select up to 3 countries",
-                                className="mb-2"
+                                className="mb-1"
                             ),
                             html.Div(id='country-warning', style={'color': 'red', 'fontSize': '0.7rem'})
                         ], xs=12, md=4),
@@ -172,7 +186,7 @@ app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
                                 options=[{'label': ind, 'value': ind} for ind in sorted(data['industry_new'].dropna().unique())],
                                 multi=True,
                                 placeholder="Select up to 4 industries",
-                                className="mb-2"
+                                className="mb-1"
                             ),
                             html.Div(id='industry-warning', style={'color': 'red', 'fontSize': '0.7rem'})
                         ], xs=12, md=4)
@@ -190,11 +204,11 @@ app.layout = dbc.Container(fluid=True, className="px-1 px-md-3", children=[
                                         className="text-dark small mt-2")
                             ])
                         ])
-                    ], className="mt-3")
+                    ], className="mt-2")
                 ])
             ])
         ], width=12)
-    ], className="mb-2 mb-md-4"),
+    ], className="mb-1 mb-md-4"),
 
     # Hidden div to store screen width
     html.Div(id='screen-width', style={'display': 'none'}),
@@ -227,22 +241,44 @@ clientside_callback(
 
 # Helper function to get responsive layout parameters
 def get_responsive_params(screen_width=None):
-    # Default to mobile if screen_width is not available
-    if screen_width is None or screen_width < 768:
+    # More aggressive mobile settings
+    if screen_width is None or screen_width < 576:  # Very small phones
         return {
-            'margin_left': 120,
-            'margin_right': 10,
-            'margin_top': 80,
-            'margin_bottom': 60,
-            'font_size': 10,
-            'title_font_size': 12,
-            'text_font_size': 10,
+            'margin_left': 140,
+            'margin_right': 5,
+            'margin_top': 60,
+            'margin_bottom': 40,
+            'font_size': 11,
+            'title_font_size': 11,
+            'text_font_size': 11,
             'legend_font_size': 9,
-            'height_single': 600,
-            'height_subplots': 1200,
+            'height_single': 700,
+            'height_subplots': 2000,  # Much taller for mobile
             'legend_x': 1.01,
             'legend_y': 0.99,
-            'show_legend_text': False
+            'show_legend_text': False,
+            'use_vertical_subplots': True,  # Stack subplots vertically
+            'subplot_spacing_v': 0.25,
+            'subplot_spacing_h': 0.15
+        }
+    elif screen_width < 768:  # Small phones/large phones
+        return {
+            'margin_left': 150,
+            'margin_right': 8,
+            'margin_top': 70,
+            'margin_bottom': 50,
+            'font_size': 12,
+            'title_font_size': 12,
+            'text_font_size': 12,
+            'legend_font_size': 10,
+            'height_single': 750,
+            'height_subplots': 1800,
+            'legend_x': 1.01,
+            'legend_y': 0.99,
+            'show_legend_text': False,
+            'use_vertical_subplots': True,  # Stack subplots vertically
+            'subplot_spacing_v': 0.22,
+            'subplot_spacing_h': 0.15
         }
     elif screen_width < 992:  # Tablet
         return {
@@ -258,7 +294,10 @@ def get_responsive_params(screen_width=None):
             'height_subplots': 1400,
             'legend_x': 1.02,
             'legend_y': 0.99,
-            'show_legend_text': True
+            'show_legend_text': True,
+            'use_vertical_subplots': False,
+            'subplot_spacing_v': 0.18,
+            'subplot_spacing_h': 0.12
         }
     else:  # Desktop
         return {
@@ -274,7 +313,10 @@ def get_responsive_params(screen_width=None):
             'height_subplots': 1600,
             'legend_x': 1.02,
             'legend_y': 0.99,
-            'show_legend_text': True
+            'show_legend_text': True,
+            'use_vertical_subplots': False,
+            'subplot_spacing_v': 0.16,
+            'subplot_spacing_h': 0.12
         }
 
 # Modified callbacks with responsive parameters
@@ -456,6 +498,8 @@ def create_grouped_bar_chart(df, countries, continents, params):
         yaxis_tickfont_size=params['font_size'],
         xaxis_title="Percentage of Companies",
         yaxis_title="Corporate Venturing Practices",
+        xaxis_title_font=dict(size=params['font_size']),
+        yaxis_title_font=dict(size=params['font_size']),
         yaxis=dict(
             ticksuffix='   ',
             tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
@@ -535,6 +579,10 @@ def create_industry_visualization(df, industries, params):
         plot_bgcolor='white',
         paper_bgcolor='white',
         yaxis_tickfont_size=params['font_size'],
+        xaxis_title="Percentage of Companies",
+        yaxis_title="Corporate Venturing Practices",
+        xaxis_title_font=dict(size=params['font_size']),
+        yaxis_title_font=dict(size=params['font_size']),
         yaxis=dict(
             ticksuffix='   ',
             tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
@@ -552,9 +600,7 @@ def create_industry_visualization(df, industries, params):
             bordercolor="LightGray",
             borderwidth=1,
             font=dict(size=params['legend_font_size'])
-        ),
-        xaxis_title="Percentage of Companies",
-        yaxis_title="Corporate Venturing Practices"
+        )
     )
 
     return dcc.Graph(
@@ -564,17 +610,31 @@ def create_industry_visualization(df, industries, params):
     )
 
 def create_industry_subplots(df, industries, countries, continents, params):
-    rows, cols = 2, 2
     actual_industries = [i for i in industries if i]
-    industries = actual_industries + [''] * (4 - len(actual_industries))
 
-    fig = make_subplots(
-        rows=2,
-        cols=2,
-        subplot_titles=[f"Industry: {i}" if i else "" for i in industries],
-        horizontal_spacing=0.12,
-        vertical_spacing=0.16
-    )
+    # For mobile, use vertical layout (4 rows, 1 column)
+    if params['use_vertical_subplots']:
+        rows, cols = 4, 1
+        industries = actual_industries + [''] * (4 - len(actual_industries))
+
+        fig = make_subplots(
+            rows=4,
+            cols=1,
+            subplot_titles=[f"{i}" if i else "" for i in industries],  # Shorter titles for mobile
+            vertical_spacing=params['subplot_spacing_v']
+        )
+    else:
+        # Desktop layout (2 rows, 2 columns)
+        rows, cols = 2, 2
+        industries = actual_industries + [''] * (4 - len(actual_industries))
+
+        fig = make_subplots(
+            rows=2,
+            cols=2,
+            subplot_titles=[f"Industry: {i}" if i else "" for i in industries],
+            horizontal_spacing=params['subplot_spacing_h'],
+            vertical_spacing=params['subplot_spacing_v']
+        )
 
     # Logic for region selection
     if countries:
@@ -621,12 +681,16 @@ def create_industry_subplots(df, industries, countries, continents, params):
         if not industry:
             continue
 
-        r, c = divmod(idx, 2)
-        row, col = r + 1, c + 1
+        if params['use_vertical_subplots']:
+            row, col = idx + 1, 1
+        else:
+            r, c = divmod(idx, 2)
+            row, col = r + 1, c + 1
 
         industry_data = df[df['industry_new'] == industry]
         has_data_to_display = industries_with_data.get(industry, False)
 
+        # Add horizontal separators between practice rows
         if any_subplot_has_data:
             for i in range(len(practices) - 1):
                 fig.add_shape(
@@ -647,17 +711,22 @@ def create_industry_subplots(df, industries, countries, continents, params):
                 )
 
         if not has_data_to_display:
-            title_y = fig.layout.annotations[idx].y
-            x_center = 0.5
+            # Calculate position for "No data" message
+            title_y = fig.layout.annotations[idx].y if idx < len(fig.layout.annotations) else 0.5
 
-            if row == 1 and col == 1:
-                x_center = 0.12
-            elif row == 1 and col == 2:
-                x_center = 0.90
-            elif row == 2 and col == 1:
-                x_center = 0.12
-            elif row == 2 and col == 2:
-                x_center = 0.90
+            if params['use_vertical_subplots']:
+                x_center = 0.5
+            else:
+                if row == 1 and col == 1:
+                    x_center = 0.12
+                elif row == 1 and col == 2:
+                    x_center = 0.90
+                elif row == 2 and col == 1:
+                    x_center = 0.12
+                elif row == 2 and col == 2:
+                    x_center = 0.90
+                else:
+                    x_center = 0.5
 
             vertical_margin = 0.05
 
@@ -742,13 +811,20 @@ def create_industry_subplots(df, industries, countries, continents, params):
         if not industry:
             continue
 
-        r, c = divmod(idx, 2)
-        row, col = r + 1, c + 1
+        if params['use_vertical_subplots']:
+            row, col = idx + 1, 1
+        else:
+            r, c = divmod(idx, 2)
+            row, col = r + 1, c + 1
+
         has_data = industries_with_data.get(industry, False)
 
         if has_data:
+            # Show x-axis title only on the bottom subplot(s)
+            show_x_title = (params['use_vertical_subplots'] and row == 4) or (not params['use_vertical_subplots'] and row == 2)
+
             fig.update_xaxes(
-                title_text="Percentage of Companies" if row == 2 else "",
+                title_text="Percentage of Companies" if show_x_title else "",
                 title_font=dict(size=params['font_size']),
                 tickfont=dict(size=params['font_size'] - 1),
                 linewidth=1,
@@ -764,7 +840,11 @@ def create_industry_subplots(df, industries, countries, continents, params):
                 col=col
             )
 
-            if col == 1:
+            # For vertical layout, show y-axis labels on all subplots
+            # For horizontal layout, show only on left column
+            show_y_labels = params['use_vertical_subplots'] or col == 1
+
+            if show_y_labels:
                 fig.update_yaxes(
                     tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
                     ticksuffix='   ',
@@ -792,5 +872,5 @@ def create_industry_subplots(df, industries, countries, continents, params):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 8050))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=True, dev_tools_ui=False)
 
