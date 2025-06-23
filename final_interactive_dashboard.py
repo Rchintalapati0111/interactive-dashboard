@@ -78,6 +78,12 @@ app.index_string = '''
         {%css%}
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
+            /* Always apply base padding */
+            .container-fluid {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+
             /* Mobile-first responsive styles */
             @media (max-width: 768px) {
                 .container-fluid {
@@ -729,6 +735,26 @@ def create_industry_subplots(df, industries, countries, continents, params):
                     x_center = 0.5
 
             vertical_margin = 0.05
+
+            fig.update_yaxes(
+                tickvals=list(range(len(practices))),
+                ticktext=practices,
+                ticksuffix='   ',
+                tickfont=dict(size=params['font_size'], family="Arial, sans-serif"),
+                linewidth=1,
+                linecolor='gray',
+                row=row,
+                col=col)
+
+            fig.update_xaxes(
+               showline=True,
+               linewidth=1,
+               linecolor='gray',
+               showgrid=False,
+               zeroline=False,
+               row=row,
+               col=col
+               )
 
             fig.add_annotation(
                 text="No data available",
